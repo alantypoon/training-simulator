@@ -2,7 +2,7 @@ import { useRef, useEffect } from 'react';
 import { useThree, useFrame } from '@react-three/fiber';
 import { PointerLockControls } from '@react-three/drei';
 import { Vector3 } from 'three';
-import { useGameStore, actions } from '../store/gameStore';
+import { useGameStore, actions, gameStore } from '../store/gameStore';
 import { soundManager } from '../game/SoundManager';
 
 const SPEED = 5;
@@ -14,6 +14,7 @@ export function Player() {
   const controlsRef = useRef<any>(null);
   const velocity = useRef(new Vector3());
   const direction = useRef(new Vector3());
+  const viewDirection = useRef(new Vector3());
   const isJumping = useRef(false);
   
   const moveForward = useRef(false);
@@ -39,6 +40,21 @@ export function Player() {
         case 'KeyA': moveLeft.current = true; break;
         case 'KeyS': moveBackward.current = true; break;
         case 'KeyD': moveRight.current = true; break;
+        case 'KeyR':
+          if (isGameRunning) {
+            event.preventDefault();
+            actions.reload();
+          }
+          break;
+        case 'KeyP':
+          if (document.pointerLockElement) {
+            document.exitPointerLock();
+            actions.stopGame();
+          }
+          break;
+        case 'KeyM':
+          actions.returnToMenu();
+          break;
         case 'Space':
           if (!isJumping.current) {
             velocity.current.y = JUMP_FORCE;
@@ -46,7 +62,6 @@ export function Player() {
             soundManager.playJump();
           }
           break;
-        case 'KeyR': actions.reload(); break;
         case 'Digit1': actions.setWeapon('AK47'); break;
         case 'Digit2': actions.setWeapon('SMG'); break;
         case 'Digit3': actions.setWeapon('SNIPER'); break;
@@ -71,7 +86,7 @@ export function Player() {
       document.removeEventListener('keydown', onKeyDown);
       document.removeEventListener('keyup', onKeyUp);
     };
-  }, []);
+  }, [isGameRunning]);
 
   useFrame((state, delta) => {
     if (!isGameRunning) return;
@@ -100,13 +115,21 @@ export function Player() {
       camera.position.y = 1.6;
       isJumping.current = false;
     }
+
+    camera.getWorldDirection(viewDirection.current);
+    const playerHeading = Math.atan2(viewDirection.current.x, viewDirection.current.z);
+    actions.updatePlayerRadar(camera.position.x, camera.position.z, playerHeading);
   });
 
   return (
     <PointerLockControls 
       ref={controlsRef} 
       selector="#root" // Lock pointer to root div
-      onUnlock={() => actions.stopGame()}
+      onUnlock={() => {
+        if (gameStore.getState().isGameRunning) {
+          actions.stopGame();
+        }
+      }}
       onLock={() => actions.startGame()}
     />
   );

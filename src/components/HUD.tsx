@@ -2,12 +2,25 @@ import { useGameStore, actions } from '../store/gameStore';
 import { WEAPONS } from '../game/types';
 import { useState, useEffect } from 'react';
 
+const RADAR_SIZE = 160;
+const RADAR_RANGE = 90;
+
+function clamp(value: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, value));
+}
+
+function getCompassHeading(playerHeading: number) {
+  const normalized = (playerHeading + Math.PI) % (Math.PI * 2);
+  const index = Math.round(normalized / (Math.PI / 4)) % 8;
+  return ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'][index];
+}
+
 export function HUD() {
   const { 
     health, maxHealth, ammo, maxAmmo, currentWeapon, 
     score, level, isGameRunning, message, difficulty, isStealthMode,
     volume, bossSpawned, bossHealth, bossMaxHealth, levelComplete,
-    gameStartTime, henchmenRemaining, henchmenTotal, showCutscene, cutsceneStats
+    gameStartTime, henchmenRemaining, henchmenTotal, showCutscene, cutsceneStats, radar
   } = useGameStore();
 
   const weaponName = WEAPONS[currentWeapon].name;
@@ -26,6 +39,24 @@ export function HUD() {
   const minutes = Math.floor(elapsed / 60);
   const seconds = elapsed % 60;
   const timeStr = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+  const radarCenter = RADAR_SIZE / 2;
+  const compassHeading = getCompassHeading(radar.playerHeading);
+  const radarContacts = radar.contacts.map((contact) => {
+    const dx = contact.x - radar.playerX;
+    const dz = contact.z - radar.playerZ;
+    const sin = Math.sin(radar.playerHeading);
+    const cos = Math.cos(radar.playerHeading);
+    const localX = dx * cos - dz * sin;
+    const localY = dx * sin + dz * cos;
+    const scaledX = (localX / RADAR_RANGE) * (radarCenter - 16);
+    const scaledY = (localY / RADAR_RANGE) * (radarCenter - 16);
+
+    return {
+      ...contact,
+      x: clamp(radarCenter + scaledX, 12, RADAR_SIZE - 12),
+      y: clamp(radarCenter - scaledY, 12, RADAR_SIZE - 12),
+    };
+  });
 
   // Volume icon based on level
   const volumeIcon = volume === 0 ? '🔇' : volume < 0.35 ? '🔈' : volume < 0.7 ? '🔉' : '🔊';
@@ -75,7 +106,24 @@ export function HUD() {
       </div>
 
       {/* Top Right: Volume Control */}
-      <div className="absolute top-5 right-5 pointer-events-auto">
+      <div className="absolute top-5 right-5 pointer-events-auto flex items-start gap-2">
+        <button
+          className="text-white bg-black/55 hover:bg-black/75 border border-yellow-400/30 rounded-lg px-3 py-2 text-xs font-bold tracking-[0.2em] transition-colors"
+          onClick={() => {
+            document.exitPointerLock();
+            actions.stopGame();
+          }}
+          title="Pause"
+        >
+          PAUSE
+        </button>
+        <button
+          className="text-white bg-black/55 hover:bg-black/75 border border-red-400/30 rounded-lg px-3 py-2 text-xs font-bold tracking-[0.2em] transition-colors"
+          onClick={() => actions.returnToMenu()}
+          title="Return to menu"
+        >
+          MENU
+        </button>
         <button 
           className="text-white bg-black/40 hover:bg-black/60 border border-white/20 rounded-lg px-3 py-2 text-lg transition-colors"
           onClick={() => setShowVolumeSlider(!showVolumeSlider)}
@@ -84,7 +132,7 @@ export function HUD() {
           {volumeIcon}
         </button>
         {showVolumeSlider && (
-          <div className="mt-2 bg-black/80 border border-white/20 rounded-lg p-3 w-48 backdrop-blur-sm">
+          <div className="mt-12 -ml-48 bg-black/80 border border-white/20 rounded-lg p-3 w-48 backdrop-blur-sm">
             <div className="flex items-center justify-between mb-2">
               <span className="text-white text-xs font-bold">VOLUME</span>
               <span className="text-yellow-400 text-xs font-bold">{Math.round(volume * 100)}%</span>
@@ -156,13 +204,87 @@ export function HUD() {
         <span className="text-white font-bold">UNIT INTEGRITY</span>
       </div>
 
-      {/* Bottom Right: Ammo & Weapon */}
-      <div className="absolute bottom-5 right-5 text-right text-white">
-        <div className="text-4xl font-bold text-yellow-400">
-          {ammo} <span className="text-xl text-white">/ {maxAmmo}</span>
+      {/* Bottom Right: Radar + Ammo */}
+      <div className="absolute bottom-5 right-5 flex flex-col items-end gap-4 text-white">
+        <div className="bg-black/55 border border-green-400/30 rounded-2xl p-3 backdrop-blur-sm shadow-xl">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs font-bold tracking-[0.3em] text-green-400">RADAR</span>
+            <span className="text-[10px] text-white/60">{radar.contacts.length} HOSTILES</span>
+          </div>
+          <div className="mb-2 flex items-center justify-between text-[10px] tracking-[0.25em]">
+            <span className="text-green-300/90">FACING {compassHeading}</span>
+            <span className="text-white/45">FORWARD ↑</span>
+          </div>
+          <div
+            className="relative rounded-full border border-green-400/40 bg-black/80 overflow-hidden"
+            style={{ width: `${RADAR_SIZE}px`, height: `${RADAR_SIZE}px` }}
+          >
+            <div className="absolute inset-0 rounded-full" style={{
+              background: 'radial-gradient(circle, rgba(34,197,94,0.12) 0%, rgba(0,0,0,0) 65%)',
+            }} />
+            <div className="absolute left-1/2 top-2 bottom-2 w-px -translate-x-1/2 bg-green-400/20" />
+            <div className="absolute top-1/2 left-2 right-2 h-px -translate-y-1/2 bg-green-400/20" />
+            <div className="absolute inset-5 rounded-full border border-green-400/20" />
+            <div className="absolute inset-10 rounded-full border border-green-400/15" />
+            <div className="absolute left-1/2 top-2 -translate-x-1/2 rounded-full border border-green-400/40 bg-black/85 px-2 py-0.5 text-[10px] font-bold tracking-[0.28em] text-green-300">
+              {compassHeading}
+            </div>
+            <div
+              className="absolute left-1/2 top-1/2 -translate-x-1/2"
+              style={{
+                width: '0',
+                height: '0',
+                borderLeft: '16px solid transparent',
+                borderRight: '16px solid transparent',
+                borderBottom: '52px solid rgba(34, 197, 94, 0.09)',
+                transform: 'translate(-50%, -100%)',
+                filter: 'drop-shadow(0 0 10px rgba(74, 222, 128, 0.2))',
+              }}
+            />
+            <div className="absolute left-1/2 top-[18px] h-[52px] w-px -translate-x-1/2 bg-gradient-to-b from-green-300/90 to-transparent" />
+            <div className="absolute left-1/2 top-[14px] -translate-x-1/2 text-[9px] font-bold tracking-[0.3em] text-green-300/70">
+              FORWARD
+            </div>
+
+            {radarContacts.map((contact) => (
+              <div
+                key={contact.id}
+                className="absolute -translate-x-1/2 -translate-y-1/2 rounded-full"
+                style={{
+                  left: `${contact.x}px`,
+                  top: `${contact.y}px`,
+                  width: contact.isBoss ? '12px' : '8px',
+                  height: contact.isBoss ? '12px' : '8px',
+                  backgroundColor: contact.isBoss ? '#f97316' : '#ef4444',
+                  boxShadow: contact.isBoss
+                    ? '0 0 12px rgba(249, 115, 22, 0.9)'
+                    : '0 0 8px rgba(239, 68, 68, 0.8)',
+                }}
+              />
+            ))}
+
+            <div className="absolute left-1/2 top-1/2 w-3 h-3 -translate-x-1/2 -translate-y-1/2 rounded-full bg-green-300 shadow-[0_0_10px_rgba(134,239,172,0.95)]" />
+            <div
+              className="absolute left-1/2 top-1/2 origin-bottom -translate-x-1/2 -translate-y-full"
+              style={{
+                width: '0',
+                height: '0',
+                borderLeft: '6px solid transparent',
+                borderRight: '6px solid transparent',
+                borderBottom: '14px solid rgba(134, 239, 172, 0.95)',
+              }}
+            />
+          </div>
+          <div className="mt-2 text-[10px] tracking-[0.25em] text-green-400/80 text-center">LONG RANGE SCAN</div>
         </div>
-        <div className="text-xl font-bold">{weaponName}</div>
-        <div className="text-xs opacity-70 mt-1">KEYS [1-5] TO SWITCH</div>
+
+        <div className="text-right text-white">
+          <div className="text-4xl font-bold text-yellow-400">
+            {ammo} <span className="text-xl text-white">/ {maxAmmo}</span>
+          </div>
+          <div className="text-xl font-bold">{weaponName}</div>
+          <div className="text-xs opacity-70 mt-1">KEYS [1-5] TO SWITCH</div>
+        </div>
       </div>
 
       {/* Level Complete Cutscene / Bonus Screen */}
@@ -307,6 +429,9 @@ export function HUD() {
               <p>WASD - Move</p>
               <p>SPACE - Jump</p>
               <p>LMB - Fire</p>
+              <p>R - Reload</p>
+              <p>P - Pause</p>
+              <p>M - Return to Menu</p>
               <p>1-5 - Switch Weapons</p>
               <p className="text-yellow-400 mt-2">⚠ Kill 10 henchmen to face the BOSS</p>
             </div>

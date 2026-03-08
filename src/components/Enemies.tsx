@@ -7,8 +7,12 @@ import { soundManager } from '../game/SoundManager';
 import { useGameStore } from '../store/gameStore';
 import { ZombieModel } from './ZombieModel';
 
-const MAX_ACTIVE_ENEMIES = 3;
 const HENCHMEN_PER_LEVEL = 10;
+const ACTIVE_HENCHMEN_BY_LEVEL: Record<number, number> = {
+  1: 3,
+  2: 4,
+  3: 5,
+};
 
 type EnemyMode = 'patrol' | 'chase' | 'attack';
 
@@ -45,6 +49,18 @@ function createOpeningSpawn(index: number, total: number) {
   const lateral = spread * 28 + (Math.random() - 0.5) * 6;
 
   return new Vector3(lateral, 0, -distance);
+}
+
+function createReinforcementSpawn(playerX: number, playerZ: number, playerHeading: number, index: number, total: number) {
+  const spread = total <= 1 ? 0 : (index / (total - 1) - 0.5);
+  const forwardDistance = 40 + Math.random() * 18;
+  const lateralDistance = spread * 22 + (Math.random() - 0.5) * 8;
+  const forwardX = Math.sin(playerHeading) * forwardDistance;
+  const forwardZ = Math.cos(playerHeading) * forwardDistance;
+  const rightX = Math.cos(playerHeading) * lateralDistance;
+  const rightZ = -Math.sin(playerHeading) * lateralDistance;
+
+  return new Vector3(playerX + forwardX + rightX, 0, playerZ + forwardZ + rightZ);
 }
 
 function getBehaviorProfile(stats: EnemyStats, isBoss: boolean): BehaviorProfile {
@@ -85,7 +101,8 @@ function getBehaviorProfile(stats: EnemyStats, isBoss: boolean): BehaviorProfile
   }
 }
 
-function Enemy({ stats, initialPos, onDeath, difficulty, isBoss = false, healthMultiplier = 1 }: {
+function Enemy({ radarId, stats, initialPos, onDeath, difficulty, isBoss = false, healthMultiplier = 1 }: {
+  radarId: string;
   stats: EnemyStats;
   initialPos: Vector3;
   onDeath: () => void;
@@ -123,6 +140,10 @@ function Enemy({ stats, initialPos, onDeath, difficulty, isBoss = false, healthM
       health.current = stats.health;
     }
     setThreatPatrolTarget(targetPos.current, new Vector3(initialPos.x, 0, initialPos.z), isBoss ? 6 : 0);
+
+    return () => {
+      actions.removeRadarContact(radarId);
+    };
   }, []);
 
   useFrame((_, delta) => {
@@ -249,6 +270,7 @@ function Enemy({ stats, initialPos, onDeath, difficulty, isBoss = false, healthM
     }
 
     enemyPos.y = 0;
+    actions.upsertRadarContact(radarId, enemyPos.x, enemyPos.z, isBoss);
 
     const lookVector = scratchLook.current.copy(
       state.current === 'patrol' && movement.lengthSq() > 0.0001 ? movement : aimDirection,
@@ -286,6 +308,7 @@ function Enemy({ stats, initialPos, onDeath, difficulty, isBoss = false, healthM
       actions.damageBoss(dmg);
     }
     if (health.current <= 0) {
+      actions.removeRadarContact(radarId);
       onDeath();
       if (!isBoss) {
         actions.addScore(stats.scoreValue);
@@ -332,10 +355,20 @@ export function Enemies({ config }: { config: LevelConfig }) {
   const [bossEnemy, setBossEnemy] = useState<{ id: string; pos: Vector3 } | null>(null);
   const difficulty = useGameStore((state) => state.difficulty);
   const isGameRunning = useGameStore((state) => state.isGameRunning);
-  const henchmenRemaining = useGameStore((state) => state.henchmenRemaining);
   const bossSpawned = useGameStore((state) => state.bossSpawned);
+  const radar = useGameStore((state) => state.radar);
   const totalSpawned = useRef(0);
   const types = useRef<string[]>([]);
+  const activeHenchmenCount = ACTIVE_HENCHMEN_BY_LEVEL[config.id] ?? 3;
+
+  const createEnemyEntry = (index: number, total: number, reinforcement = false) => {
+    const type = types.current[Math.floor(Math.random() * types.current.length)] || 'GRUNT';
+    const pos = reinforcement
+      ? createReinforcementSpawn(radar.playerX, radar.playerZ, radar.playerHeading, index, total)
+      : createOpeningSpawn(index, total);
+
+    return { id: Math.random().toString(), type, pos };
+  };
 
   // Initialize on level change
   useEffect(() => {
@@ -344,16 +377,34 @@ export function Enemies({ config }: { config: LevelConfig }) {
     setBossEnemy(null);
 
     // Spawn initial wave
-    const initialCount = Math.min(MAX_ACTIVE_ENEMIES, HENCHMEN_PER_LEVEL);
+    const initialCount = Math.min(activeHenchmenCount, HENCHMEN_PER_LEVEL);
     const initialEnemies = [];
     for (let i = 0; i < initialCount; i++) {
-      const type = types.current[Math.floor(Math.random() * types.current.length)] || 'GRUNT';
-      const pos = createOpeningSpawn(i, initialCount);
-      initialEnemies.push({ id: Math.random().toString(), type, pos });
+      initialEnemies.push(createEnemyEntry(i, initialCount));
     }
     totalSpawned.current = initialCount;
     setEnemies(initialEnemies);
-  }, [config, difficulty]);
+  }, [config, difficulty, activeHenchmenCount]);
+
+  useEffect(() => {
+    if (!isGameRunning || bossSpawned || bossEnemy) return;
+
+    setEnemies((prev) => {
+      const remainingPool = HENCHMEN_PER_LEVEL - totalSpawned.current;
+      const needed = Math.min(activeHenchmenCount - prev.length, remainingPool);
+
+      if (needed <= 0) {
+        return prev;
+      }
+
+      const next = [...prev];
+      for (let i = 0; i < needed; i++) {
+        next.push(createEnemyEntry(i, needed, true));
+        totalSpawned.current += 1;
+      }
+      return next;
+    });
+  }, [enemies.length, isGameRunning, bossSpawned, bossEnemy, radar.playerX, radar.playerZ, radar.playerHeading, activeHenchmenCount]);
 
   // When boss is triggered by store, spawn boss enemy
   useEffect(() => {
@@ -366,21 +417,7 @@ export function Enemies({ config }: { config: LevelConfig }) {
   }, [bossSpawned]);
 
   const removeEnemy = (id: string) => {
-    setEnemies((prev) => {
-      const next = prev.filter((e) => e.id !== id);
-
-      // If we still have henchmen to spawn and room, add a replacement
-      if (totalSpawned.current < HENCHMEN_PER_LEVEL && next.length < MAX_ACTIVE_ENEMIES) {
-        const type = types.current[Math.floor(Math.random() * types.current.length)] || 'GRUNT';
-        const angle = Math.random() * Math.PI * 2;
-        const radius = 25 + Math.random() * 20;
-        const pos = new Vector3(Math.cos(angle) * radius, 0, Math.sin(angle) * radius);
-        totalSpawned.current += 1;
-        return [...next, { id: Math.random().toString(), type, pos }];
-      }
-
-      return next;
-    });
+    setEnemies((prev) => prev.filter((e) => e.id !== id));
   };
 
   const removeBoss = () => {
@@ -392,6 +429,7 @@ export function Enemies({ config }: { config: LevelConfig }) {
       {enemies.map((e) => (
         <Enemy
           key={e.id}
+          radarId={e.id}
           stats={ENEMIES[e.type as keyof typeof ENEMIES]}
           initialPos={e.pos}
           onDeath={() => removeEnemy(e.id)}
@@ -402,6 +440,7 @@ export function Enemies({ config }: { config: LevelConfig }) {
       {bossEnemy && (
         <Enemy
           key={bossEnemy.id}
+          radarId={bossEnemy.id}
           stats={ENEMIES.BOSS}
           initialPos={bossEnemy.pos}
           onDeath={removeBoss}

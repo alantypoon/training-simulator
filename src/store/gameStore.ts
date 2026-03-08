@@ -43,6 +43,20 @@ interface CutsceneStats {
   bonusPoints: number;
 }
 
+interface RadarContact {
+  id: string;
+  x: number;
+  z: number;
+  isBoss: boolean;
+}
+
+interface RadarState {
+  playerX: number;
+  playerZ: number;
+  playerHeading: number;
+  contacts: RadarContact[];
+}
+
 interface GameState {
   isGameRunning: boolean;
   health: number;
@@ -68,6 +82,7 @@ interface GameState {
   henchmenTotal: number;
   showCutscene: boolean;
   cutsceneStats: CutsceneStats | null;
+  radar: RadarState;
 }
 
 export const gameStore = new Store<GameState>({
@@ -95,6 +110,12 @@ export const gameStore = new Store<GameState>({
   henchmenTotal: 10,
   showCutscene: false,
   cutsceneStats: null,
+  radar: {
+    playerX: 0,
+    playerZ: 0,
+    playerHeading: 0,
+    contacts: [],
+  },
 });
 
 export const useGameStore = (selector?: (state: GameState) => any) => useStore(gameStore, selector);
@@ -123,6 +144,12 @@ const resetGame = () => {
     henchmenTotal: 10,
     showCutscene: false,
     cutsceneStats: null,
+    radar: {
+      playerX: 0,
+      playerZ: 0,
+      playerHeading: 0,
+      contacts: [],
+    },
   });
 };
 
@@ -141,6 +168,36 @@ export const actions = {
   stopGame: () => {
     gameStore.setState({ isGameRunning: false, message: 'PAUSED' });
     soundManager.stopBGM();
+  },
+  returnToMenu: () => {
+    soundManager.stopAll();
+    const { gameResetCount } = gameStore.getState();
+    gameStore.setState({
+      isGameRunning: false,
+      health: 100,
+      ammo: 30,
+      score: 0,
+      level: 1,
+      enemiesKilled: 0,
+      message: 'PRESS CLICK TO START',
+      bossSpawned: false,
+      bossHealth: 2000,
+      bossMaxHealth: 2000,
+      levelComplete: false,
+      gameStartTime: 0,
+      henchmenRemaining: 10,
+      henchmenTotal: 10,
+      showCutscene: false,
+      cutsceneStats: null,
+      gameResetCount: gameResetCount + 1,
+      radar: {
+        playerX: 0,
+        playerZ: 0,
+        playerHeading: 0,
+        contacts: [],
+      },
+    });
+    document.exitPointerLock();
   },
   takeDamage: (amount: number) => {
     const { health, isStealthMode } = gameStore.getState();
@@ -245,9 +302,53 @@ export const actions = {
       showCutscene: false,
       cutsceneStats: null,
       score,
+      radar: {
+        playerX: 0,
+        playerZ: 0,
+        playerHeading: 0,
+        contacts: [],
+      },
     });
   },
   dismissCutscene: () => {
     gameStore.setState({ showCutscene: false });
+  },
+  updatePlayerRadar: (x: number, z: number, playerHeading: number) => {
+    const { radar } = gameStore.getState();
+    gameStore.setState({
+      radar: {
+        ...radar,
+        playerX: x,
+        playerZ: z,
+        playerHeading,
+      },
+    });
+  },
+  upsertRadarContact: (id: string, x: number, z: number, isBoss: boolean) => {
+    const { radar } = gameStore.getState();
+    const existingIndex = radar.contacts.findIndex((contact) => contact.id === id);
+    const nextContacts = [...radar.contacts];
+
+    if (existingIndex >= 0) {
+      nextContacts[existingIndex] = { id, x, z, isBoss };
+    } else {
+      nextContacts.push({ id, x, z, isBoss });
+    }
+
+    gameStore.setState({
+      radar: {
+        ...radar,
+        contacts: nextContacts,
+      },
+    });
+  },
+  removeRadarContact: (id: string) => {
+    const { radar } = gameStore.getState();
+    gameStore.setState({
+      radar: {
+        ...radar,
+        contacts: radar.contacts.filter((contact) => contact.id !== id),
+      },
+    });
   },
 };

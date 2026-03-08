@@ -20,15 +20,16 @@ export function GameScene() {
       <Canvas
         shadows
         camera={{ fov: 75, position: [0, 2, 0] }}
+        dpr={[1, 1.5]}
         gl={{ antialias: true, powerPreference: 'high-performance' }}
       >
         <Suspense fallback={null}>
           <group key={gameResetCount}>
             <fog attach="fog" args={[currentLevel.fogColor, 15, 80]} />
-            <ambientLight intensity={levelId === 3 ? 0.15 : levelId === 2 ? 0.25 : 0.5} />
+            <ambientLight intensity={levelId === 3 ? 0.15 : levelId === 2 ? 0.42 : 0.5} />
             <directionalLight 
               position={[10, 20, 10]} 
-              intensity={levelId === 3 ? 0.3 : 1} 
+              intensity={levelId === 3 ? 0.3 : levelId === 2 ? 1.25 : 1} 
               castShadow 
               shadow-mapSize={[2048, 2048]}
               shadow-camera-far={100}
@@ -38,13 +39,14 @@ export function GameScene() {
               shadow-camera-bottom={-50}
             />
             {/* Secondary fill light */}
-            <directionalLight position={[-5, 10, -5]} intensity={0.2} />
+            <directionalLight position={[-5, 10, -5]} intensity={levelId === 2 ? 0.45 : 0.2} color={levelId === 2 ? '#c7deff' : '#ffffff'} />
             {/* Level-specific hemisphere light for ambient coloring */}
             <hemisphereLight
-              color={levelId === 1 ? '#b4c6db' : levelId === 2 ? '#445566' : '#0a0a2a'}
-              groundColor={levelId === 1 ? '#d4d4d4' : levelId === 2 ? '#222' : '#000'}
-              intensity={0.4}
+              color={levelId === 1 ? '#b4c6db' : levelId === 2 ? '#90b4dd' : '#0a0a2a'}
+              groundColor={levelId === 1 ? '#d4d4d4' : levelId === 2 ? '#38424a' : '#000'}
+              intensity={levelId === 2 ? 0.65 : 0.4}
             />
+            {levelId === 2 && <pointLight position={[0, 12, 0]} intensity={0.8} distance={90} color="#dbeafe" />}
             
             <Player />
             <Level config={currentLevel} />
@@ -68,6 +70,7 @@ export function GameScene() {
             {levelId === 2 && (
               <>
                 <Environment preset="city" />
+                <Sky sunPosition={[6, 4, 8]} turbidity={10} rayleigh={0.8} mieCoefficient={0.02} mieDirectionalG={0.65} />
                 <Cloud position={[0, 15, 0]} speed={0.4} opacity={0.6} width={40} depth={10} />
                 <Cloud position={[-15, 18, 10]} speed={0.3} opacity={0.5} width={30} />
               </>
