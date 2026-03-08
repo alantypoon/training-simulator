@@ -66,7 +66,7 @@ export const LEVELS: LevelConfig[] = [
     fogColor: '#e2e8f0',
     groundColor: '#f8fafc',
     skyColor: '#cbd5e1',
-    enemyTypes: ['GRUNT', 'SNIPER', 'DRONE'],
+    enemyTypes: ['TANK', 'HEAVY'],
     enemyCount: 15,
     gravity: 9.8
   },

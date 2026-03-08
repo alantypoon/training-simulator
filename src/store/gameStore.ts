@@ -34,6 +34,15 @@ export function useStore<T>(store: Store<T>, selector: (state: T) => any = (s) =
 // Game State Definition
 import { WeaponType, LEVELS } from '../game/types';
 
+interface CutsceneStats {
+  levelName: string;
+  score: number;
+  henchmenKilled: number;
+  timeElapsed: number;
+  healthRemaining: number;
+  bonusPoints: number;
+}
+
 interface GameState {
   isGameRunning: boolean;
   health: number;
@@ -55,6 +64,10 @@ interface GameState {
   bossMaxHealth: number;
   levelComplete: boolean;
   gameStartTime: number;
+  henchmenRemaining: number;
+  henchmenTotal: number;
+  showCutscene: boolean;
+  cutsceneStats: CutsceneStats | null;
 }
 
 export const gameStore = new Store<GameState>({
@@ -78,6 +91,10 @@ export const gameStore = new Store<GameState>({
   bossMaxHealth: 2000,
   levelComplete: false,
   gameStartTime: 0,
+  henchmenRemaining: 10,
+  henchmenTotal: 10,
+  showCutscene: false,
+  cutsceneStats: null,
 });
 
 export const useGameStore = (selector?: (state: GameState) => any) => useStore(gameStore, selector);
@@ -102,6 +119,10 @@ const resetGame = () => {
     bossMaxHealth: 2000,
     levelComplete: false,
     gameStartTime: Date.now(),
+    henchmenRemaining: 10,
+    henchmenTotal: 10,
+    showCutscene: false,
+    cutsceneStats: null,
   });
 };
 
@@ -146,19 +167,20 @@ export const actions = {
   },
   setWeapon: (weapon: WeaponType) => gameStore.setState({ currentWeapon: weapon }),
   addScore: (points: number) => {
-    const { score, enemiesKilled, level } = gameStore.getState();
+    const { score, enemiesKilled, henchmenRemaining } = gameStore.getState();
     const newKilled = enemiesKilled + 1;
-    let newLevel = level;
-    
-    // Level up logic
-    if (newKilled > 5 && level === 1) newLevel = 2;
-    if (newKilled > 15 && level === 2) newLevel = 3;
+    const newHenchmenRemaining = Math.max(0, henchmenRemaining - 1);
 
     gameStore.setState({ 
       score: score + points, 
       enemiesKilled: newKilled,
-      level: newLevel
+      henchmenRemaining: newHenchmenRemaining,
     });
+
+    // When all henchmen killed, spawn boss
+    if (newHenchmenRemaining <= 0) {
+      actions.spawnBoss();
+    }
   },
   setMessage: (msg: string) => gameStore.setState({ message: msg }),
   setVolume: (val: number) => {
@@ -172,17 +194,60 @@ export const actions = {
     }
   },
   damageBoss: (amount: number) => {
-    const { bossHealth } = gameStore.getState();
+    const { bossHealth, score, henchmenTotal, gameStartTime, health, level } = gameStore.getState();
     const newHealth = Math.max(0, bossHealth - amount);
     gameStore.setState({ bossHealth: newHealth });
     if (newHealth <= 0) {
+      const timeElapsed = gameStartTime ? Math.floor((Date.now() - gameStartTime) / 1000) : 0;
+      const timeBonus = Math.max(0, 300 - timeElapsed) * 10;
+      const healthBonus = Math.floor(health) * 20;
+      const bonusPoints = timeBonus + healthBonus;
+      const levelNames = ['', 'Moscow Mountains', 'London City', 'Hong Kong Peak'];
+
       gameStore.setState({
         levelComplete: true,
         isGameRunning: false,
         message: 'LEVEL COMPLETE!',
+        score: score + 5000 + bonusPoints,
+        showCutscene: true,
+        cutsceneStats: {
+          levelName: levelNames[level] || `Level ${level}`,
+          score: score + 5000 + bonusPoints,
+          henchmenKilled: henchmenTotal,
+          timeElapsed,
+          healthRemaining: Math.floor(health),
+          bonusPoints,
+        },
       });
       document.exitPointerLock();
       soundManager.stopAll();
     }
+  },
+  nextLevel: () => {
+    soundManager.stopAll();
+    const { level, score, gameResetCount } = gameStore.getState();
+    const nextLvl = level < 3 ? level + 1 : 1;
+    gameStore.setState({
+      health: 100,
+      ammo: 30,
+      level: nextLvl,
+      enemiesKilled: 0,
+      isGameRunning: true,
+      message: null,
+      gameResetCount: gameResetCount + 1,
+      bossSpawned: false,
+      bossHealth: 2000,
+      bossMaxHealth: 2000,
+      levelComplete: false,
+      gameStartTime: Date.now(),
+      henchmenRemaining: 10,
+      henchmenTotal: 10,
+      showCutscene: false,
+      cutsceneStats: null,
+      score,
+    });
+  },
+  dismissCutscene: () => {
+    gameStore.setState({ showCutscene: false });
   },
 };

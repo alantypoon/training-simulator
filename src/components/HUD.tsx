@@ -6,7 +6,8 @@ export function HUD() {
   const { 
     health, maxHealth, ammo, maxAmmo, currentWeapon, 
     score, level, isGameRunning, message, difficulty, isStealthMode,
-    volume, bossSpawned, bossHealth, bossMaxHealth, levelComplete, gameStartTime
+    volume, bossSpawned, bossHealth, bossMaxHealth, levelComplete,
+    gameStartTime, henchmenRemaining, henchmenTotal, showCutscene, cutsceneStats
   } = useGameStore();
 
   const weaponName = WEAPONS[currentWeapon].name;
@@ -58,8 +59,18 @@ export function HUD() {
         <h1 className="text-2xl font-bold">LEVEL {level}</h1>
         <p className="text-sm opacity-80">SCORE: {score}</p>
         {isGameRunning && <p className="text-sm opacity-60 mt-1">TIME: {timeStr}</p>}
-        {isGameRunning && elapsed < 30 && !bossSpawned && (
-          <p className="text-xs opacity-50 mt-1 text-yellow-400">BOSS IN: {30 - elapsed}s</p>
+        {isGameRunning && !bossSpawned && (
+          <div className="mt-2 bg-black/40 border border-white/20 rounded px-3 py-1.5">
+            <p className="text-yellow-400 text-sm font-bold tracking-wide">
+              HENCHMEN: <span className="text-white">{henchmenRemaining}</span> / {henchmenTotal}
+            </p>
+            <div className="w-full h-1.5 bg-black/60 rounded mt-1 overflow-hidden">
+              <div
+                className="h-full bg-yellow-400 transition-all duration-500"
+                style={{ width: `${((henchmenTotal - henchmenRemaining) / henchmenTotal) * 100}%` }}
+              />
+            </div>
+          </div>
         )}
       </div>
 
@@ -154,24 +165,87 @@ export function HUD() {
         <div className="text-xs opacity-70 mt-1">KEYS [1-5] TO SWITCH</div>
       </div>
 
-      {/* Level Complete Overlay */}
-      {levelComplete && (
-        <div className="absolute inset-0 flex items-center justify-center bg-black/80 backdrop-blur-sm pointer-events-auto z-30">
-          <div className="bg-white/10 p-10 rounded-2xl border border-yellow-400/40 text-center text-white max-w-md w-full">
-            <h1 className="text-5xl font-bold mb-4 text-yellow-400">LEVEL COMPLETE!</h1>
-            <p className="text-2xl mb-2">☠ BOSS DEFEATED ☠</p>
-            <p className="text-lg mb-6 opacity-80">Score: <span className="text-yellow-400 font-bold">{score}</span></p>
-            <p className="text-sm mb-6 opacity-60">Time: {timeStr}</p>
-            <button 
-              className="bg-yellow-500 hover:bg-yellow-400 text-black font-bold py-3 px-8 rounded transition-colors"
-              onClick={() => {
-                actions.resetGame();
-                const canvas = document.querySelector('canvas');
-                if (canvas) canvas.requestPointerLock();
-              }}
-            >
-              PLAY AGAIN
-            </button>
+      {/* Level Complete Cutscene / Bonus Screen */}
+      {levelComplete && showCutscene && cutsceneStats && (
+        <div className="absolute inset-0 flex items-center justify-center bg-black/90 backdrop-blur-md pointer-events-auto z-30">
+          <div className="bg-gradient-to-b from-yellow-900/30 to-black/80 p-10 rounded-2xl border-2 border-yellow-500/60 text-center text-white max-w-lg w-full shadow-2xl">
+            {/* Header */}
+            <div className="mb-6">
+              <p className="text-yellow-500 text-sm font-bold tracking-[0.4em] uppercase mb-2">Mission Complete</p>
+              <h1 className="text-5xl font-bold text-yellow-400 drop-shadow-lg">LEVEL {level}</h1>
+              <p className="text-lg opacity-70 mt-1">{cutsceneStats.levelName}</p>
+            </div>
+
+            {/* Divider */}
+            <div className="w-full h-px bg-gradient-to-r from-transparent via-yellow-500/60 to-transparent mb-6" />
+
+            {/* Stats */}
+            <div className="grid grid-cols-2 gap-4 mb-6 text-left">
+              <div className="bg-black/40 border border-white/10 rounded-lg p-3">
+                <p className="text-xs text-yellow-400 font-bold tracking-wider">HENCHMEN KILLED</p>
+                <p className="text-2xl font-bold">{cutsceneStats.henchmenKilled} <span className="text-sm opacity-50">/ {cutsceneStats.henchmenKilled}</span></p>
+              </div>
+              <div className="bg-black/40 border border-white/10 rounded-lg p-3">
+                <p className="text-xs text-yellow-400 font-bold tracking-wider">BOSS</p>
+                <p className="text-2xl font-bold text-red-400">DEFEATED ☠</p>
+              </div>
+              <div className="bg-black/40 border border-white/10 rounded-lg p-3">
+                <p className="text-xs text-yellow-400 font-bold tracking-wider">TIME</p>
+                <p className="text-2xl font-bold">{Math.floor(cutsceneStats.timeElapsed / 60)}:{(cutsceneStats.timeElapsed % 60).toString().padStart(2, '0')}</p>
+              </div>
+              <div className="bg-black/40 border border-white/10 rounded-lg p-3">
+                <p className="text-xs text-yellow-400 font-bold tracking-wider">HEALTH</p>
+                <p className="text-2xl font-bold text-green-400">{cutsceneStats.healthRemaining}%</p>
+              </div>
+            </div>
+
+            {/* Score breakdown */}
+            <div className="bg-black/40 border border-yellow-500/20 rounded-lg p-4 mb-6">
+              <div className="flex justify-between text-sm mb-1">
+                <span className="opacity-60">Boss Bonus</span>
+                <span className="text-yellow-400 font-bold">+5,000</span>
+              </div>
+              <div className="flex justify-between text-sm mb-1">
+                <span className="opacity-60">Time & Health Bonus</span>
+                <span className="text-yellow-400 font-bold">+{cutsceneStats.bonusPoints.toLocaleString()}</span>
+              </div>
+              <div className="w-full h-px bg-white/20 my-2" />
+              <div className="flex justify-between text-lg font-bold">
+                <span>TOTAL SCORE</span>
+                <span className="text-yellow-400">{cutsceneStats.score.toLocaleString()}</span>
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="flex gap-4 justify-center">
+              {level < 3 ? (
+                <button
+                  className="bg-yellow-500 hover:bg-yellow-400 text-black font-bold py-3 px-8 rounded-lg transition-colors text-lg"
+                  onClick={() => {
+                    actions.nextLevel();
+                    const canvas = document.querySelector('canvas');
+                    if (canvas) canvas.requestPointerLock();
+                  }}
+                >
+                  NEXT LEVEL →
+                </button>
+              ) : (
+                <button
+                  className="bg-yellow-500 hover:bg-yellow-400 text-black font-bold py-3 px-8 rounded-lg transition-colors text-lg"
+                  onClick={() => {
+                    actions.resetGame();
+                    const canvas = document.querySelector('canvas');
+                    if (canvas) canvas.requestPointerLock();
+                  }}
+                >
+                  🏆 PLAY AGAIN
+                </button>
+              )}
+            </div>
+
+            {level >= 3 && (
+              <p className="text-yellow-500 text-sm mt-4 animate-pulse tracking-wider">★ ALL LEVELS COMPLETE ★</p>
+            )}
           </div>
         </div>
       )}
@@ -234,7 +308,7 @@ export function HUD() {
               <p>SPACE - Jump</p>
               <p>LMB - Fire</p>
               <p>1-5 - Switch Weapons</p>
-              <p className="text-yellow-400 mt-2">⚠ BOSS spawns at 0:30</p>
+              <p className="text-yellow-400 mt-2">⚠ Kill 10 henchmen to face the BOSS</p>
             </div>
 
             <button 
