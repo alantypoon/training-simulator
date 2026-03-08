@@ -20,8 +20,17 @@ export function Player() {
   const moveBackward = useRef(false);
   const moveLeft = useRef(false);
   const moveRight = useRef(false);
+  const hasInitializedView = useRef(false);
 
   const isGameRunning = useGameStore((state) => state.isGameRunning);
+
+  useEffect(() => {
+    if (hasInitializedView.current) return;
+
+    camera.position.set(0, 2.4, 14);
+    camera.lookAt(0, 1.7, -34);
+    hasInitializedView.current = true;
+  }, [camera]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
