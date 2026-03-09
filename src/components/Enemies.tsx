@@ -2,7 +2,7 @@ import { useRef, useState, useEffect } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import { MathUtils, Vector3 } from 'three';
 import { EnemyStats, ENEMIES, LevelConfig } from '../game/types';
-import { actions } from '../store/gameStore';
+import { actions, gameStore } from '../store/gameStore';
 import { soundManager } from '../game/SoundManager';
 import { useGameStore } from '../store/gameStore';
 import { ZombieModel } from './ZombieModel';
@@ -112,6 +112,7 @@ function Enemy({ radarId, stats, initialPos, onDeath, difficulty, isBoss = false
 }) {
   const groupRef = useRef<any>(null);
   const modelRef = useRef<any>(null);
+  const dead = useRef(false);
   const health = useRef(stats.health * healthMultiplier * (1 + (difficulty - 1) * 0.2));
   const state = useRef<EnemyMode>('patrol');
   const targetPos = useRef(new Vector3((Math.random() - 0.5) * 40, 0, (Math.random() - 0.5) * 40));
@@ -303,11 +304,13 @@ function Enemy({ radarId, stats, initialPos, onDeath, difficulty, isBoss = false
   });
 
   const handleHit = (dmg: number) => {
+    if (dead.current) return;
     health.current -= dmg;
     if (isBoss) {
       actions.damageBoss(dmg);
     }
     if (health.current <= 0) {
+      dead.current = true;
       actions.removeRadarContact(radarId);
       onDeath();
       if (!isBoss) {
@@ -357,7 +360,6 @@ export function Enemies({ config }: { config: LevelConfig }) {
   const isGameRunning = useGameStore((state) => state.isGameRunning);
   const bossSpawned = useGameStore((state) => state.bossSpawned);
   const radar = useGameStore((state) => state.radar);
-  const totalSpawned = useRef(0);
   const types = useRef<string[]>([]);
   const activeHenchmenCount = ACTIVE_HENCHMEN_BY_LEVEL[config.id] ?? 3;
 
@@ -373,7 +375,6 @@ export function Enemies({ config }: { config: LevelConfig }) {
   // Initialize on level change
   useEffect(() => {
     types.current = config.enemyTypes.filter(t => t !== 'BOSS');
-    totalSpawned.current = 0;
     setBossEnemy(null);
 
     // Spawn initial wave
@@ -382,29 +383,8 @@ export function Enemies({ config }: { config: LevelConfig }) {
     for (let i = 0; i < initialCount; i++) {
       initialEnemies.push(createEnemyEntry(i, initialCount));
     }
-    totalSpawned.current = initialCount;
     setEnemies(initialEnemies);
   }, [config, difficulty, activeHenchmenCount]);
-
-  useEffect(() => {
-    if (!isGameRunning || bossSpawned || bossEnemy) return;
-
-    setEnemies((prev) => {
-      const remainingPool = HENCHMEN_PER_LEVEL - totalSpawned.current;
-      const needed = Math.min(activeHenchmenCount - prev.length, remainingPool);
-
-      if (needed <= 0) {
-        return prev;
-      }
-
-      const next = [...prev];
-      for (let i = 0; i < needed; i++) {
-        next.push(createEnemyEntry(i, needed, true));
-        totalSpawned.current += 1;
-      }
-      return next;
-    });
-  }, [enemies.length, isGameRunning, bossSpawned, bossEnemy, radar.playerX, radar.playerZ, radar.playerHeading, activeHenchmenCount]);
 
   // When boss is triggered by store, spawn boss enemy
   useEffect(() => {
@@ -417,7 +397,23 @@ export function Enemies({ config }: { config: LevelConfig }) {
   }, [bossSpawned]);
 
   const removeEnemy = (id: string) => {
-    setEnemies((prev) => prev.filter((e) => e.id !== id));
+    setEnemies((prev) => {
+      const filtered = prev.filter((e) => e.id !== id);
+
+      // Always refill to maintain fixed count on screen until boss spawns
+      if (!gameStore.getState().bossSpawned) {
+        const needed = activeHenchmenCount - filtered.length;
+
+        for (let i = 0; i < needed; i++) {
+          const r = gameStore.getState().radar;
+          const type = types.current[Math.floor(Math.random() * types.current.length)] || 'GRUNT';
+          const pos = createReinforcementSpawn(r.playerX, r.playerZ, r.playerHeading, i, needed);
+          filtered.push({ id: Math.random().toString(), type, pos });
+        }
+      }
+
+      return filtered;
+    });
   };
 
   const removeBoss = () => {
