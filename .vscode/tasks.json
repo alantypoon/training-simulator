@@ -11,6 +11,28 @@
 			],
 			"isBackground": false,
 			"group": "build"
+		},
+		{
+			"label": "build training-simulator mobile-fit",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"run",
+				"build"
+			],
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "build training-simulator crosshair",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"run",
+				"build"
+			],
+			"isBackground": false,
+			"group": "build"
 		}
 	]
 }

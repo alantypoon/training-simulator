@@ -69,11 +69,11 @@ export function HUD() {
       {isGameRunning && (
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-10">
           <div className="w-6 h-6 relative">
-            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-0.5 h-2 bg-green-400 opacity-80" />
-            <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-0.5 h-2 bg-green-400 opacity-80" />
-            <div className="absolute left-0 top-1/2 -translate-y-1/2 w-2 h-0.5 bg-green-400 opacity-80" />
-            <div className="absolute right-0 top-1/2 -translate-y-1/2 w-2 h-0.5 bg-green-400 opacity-80" />
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-1 h-1 rounded-full border border-green-400 opacity-60" />
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-0.5 h-2 bg-red-500 opacity-90" />
+            <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-0.5 h-2 bg-red-500 opacity-90" />
+            <div className="absolute left-0 top-1/2 -translate-y-1/2 w-2 h-0.5 bg-red-500 opacity-90" />
+            <div className="absolute right-0 top-1/2 -translate-y-1/2 w-2 h-0.5 bg-red-500 opacity-90" />
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-1 h-1 rounded-full border border-red-400 opacity-80" />
           </div>
         </div>
       )}
@@ -384,14 +384,14 @@ export function HUD() {
 
       {/* Center Message / Menu */}
       {!isGameRunning && !levelComplete && (
-        <div className={`absolute inset-0 flex justify-center bg-black/80 backdrop-blur-sm pointer-events-auto ${mobile ? 'items-start px-3 py-2' : 'items-center'}`}>
+        <div className={`absolute inset-0 flex justify-center bg-black/88 backdrop-blur-md pointer-events-auto ${mobile ? 'items-start px-2 py-2' : 'items-center'}`}>
           <div className={`menu-container-mobile ${mobile ? '' : 'bg-white/10 p-10 rounded-2xl border border-white/20 max-w-md'}`}>
             <h1 className={`menu-title-mobile ${mobile ? 'text-yellow-400' : 'text-4xl font-bold mb-4 text-yellow-400'}`}>TRAINING SIMULATOR</h1>
-            <p className={`opacity-80 text-center ${mobile ? 'mb-3 text-sm leading-tight' : 'mb-6'}`}>
+            <p className={`text-center ${mobile ? 'mb-2 text-[0.82rem] leading-tight text-white/90' : 'mb-6 opacity-80'}`}>
               {message || "Enemies will engage on sight. Stay alert."}
             </p>
             {/* Difficulty Selector */}
-            <div className={`bg-black/30 rounded ${mobile ? 'mb-3 p-3' : 'mb-6 p-4'}`}>
+            <div className={`rounded border border-white/10 ${mobile ? 'mb-2.5 p-2.5 bg-black/65' : 'mb-6 p-4 bg-black/30'}`}>
               <label className={`block font-bold text-yellow-400 ${mobile ? 'mb-1.5 text-[0.95rem]' : 'mb-2 text-sm'}`}>DIFFICULTY: {difficulty}</label>
               <input 
                 type="range" 
@@ -401,13 +401,13 @@ export function HUD() {
                 className="w-full accent-yellow-400 cursor-pointer"
                 onChange={(e) => actions.setDifficulty(parseInt(e.target.value))}
               />
-              <div className={`flex justify-between opacity-50 ${mobile ? 'mt-1 text-[0.7rem]' : 'mt-1 text-xs'}`}>
+              <div className={`flex justify-between ${mobile ? 'mt-1 text-[0.68rem] text-white/75' : 'mt-1 text-xs opacity-50'}`}>
                 <span>EASY</span>
                 <span>HARDCORE</span>
               </div>
             </div>
             {/* Volume Control in Menu */}
-            <div className={`bg-black/30 rounded ${mobile ? 'mb-3 p-3' : 'mb-6 p-4'}`}>
+            <div className={`rounded border border-white/10 ${mobile ? 'mb-2.5 p-2.5 bg-black/65' : 'mb-6 p-4 bg-black/30'}`}>
               <div className={`flex items-center justify-between ${mobile ? 'mb-1.5' : 'mb-2'}`}>
                 <label className={`font-bold text-yellow-400 ${mobile ? 'text-[0.95rem]' : 'text-sm'}`}>VOLUME: {Math.round(volume * 100)}%</label>
                 <span className={mobile ? 'text-base' : 'text-lg'}>{volumeIcon}</span>
@@ -422,7 +422,7 @@ export function HUD() {
               />
             </div>
             {/* Stealth Mode Toggle */}
-            <div className={`bg-black/30 rounded flex items-center justify-between ${mobile ? 'mb-3 p-3' : 'mb-6 p-4'}`}>
+            <div className={`rounded border border-white/10 flex items-center justify-between ${mobile ? 'mb-2.5 p-2.5 bg-black/65' : 'mb-6 p-4 bg-black/30'}`}>
               <label className={`font-bold text-yellow-400 ${mobile ? 'pr-3 text-[0.95rem] leading-tight' : 'text-sm'}`}>STEALTH MODE (IMMORTAL)</label>
               <button 
                 className={`rounded-full p-1 transition-colors shrink-0 ${mobile ? 'w-11 h-6' : 'w-12 h-6'} ${isStealthMode ? 'bg-green-500' : 'bg-gray-600'}`}
@@ -432,14 +432,14 @@ export function HUD() {
               </button>
             </div>
             {mobile ? (
-              <div className="space-y-1 text-[0.8rem] leading-tight opacity-70 mb-3 text-left bg-black/30 p-3 rounded">
-                <p>LEFT STICK - MOVE</p>
-                <p>DRAG SCREEN - LOOK</p>
-                <p>FIRE - SHOOT</p>
-                <p>JUMP - HOP</p>
-                <p>RELOAD - REFILL</p>
-                <p>WEAPONS - SWITCH</p>
-                <p className="text-yellow-400 mt-1.5 text-[0.78rem]">KILL 10 HENCHMEN TO FACE THE BOSS</p>
+              <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 mb-2.5 text-left bg-black/65 border border-white/10 p-2.5 rounded text-[0.73rem] leading-tight text-white/85">
+                <p>MOVE<br /><span className="text-white/60">LEFT STICK</span></p>
+                <p>LOOK<br /><span className="text-white/60">DRAG SCREEN</span></p>
+                <p>SHOOT<br /><span className="text-white/60">FIRE BUTTON</span></p>
+                <p>JUMP<br /><span className="text-white/60">JUMP BUTTON</span></p>
+                <p>RELOAD<br /><span className="text-white/60">RELOAD</span></p>
+                <p>SWITCH<br /><span className="text-white/60">WEAPONS</span></p>
+                <p className="col-span-2 pt-1 text-[0.7rem] font-bold text-yellow-300">KILL 10 HENCHMEN TO FACE THE BOSS</p>
               </div>
             ) : (
               <div className="space-y-2 text-sm opacity-70 mb-6 text-left bg-black/30 p-4 rounded">
