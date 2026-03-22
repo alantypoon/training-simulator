@@ -1,6 +1,7 @@
 import { useGameStore, actions } from '../store/gameStore';
 import { WEAPONS } from '../game/types';
 import { useState, useEffect } from 'react';
+import { isMobile } from '../game/platform';
 
 const RADAR_SIZE = 160;
 const RADAR_RANGE = 90;
@@ -26,6 +27,7 @@ export function HUD() {
   const weaponName = WEAPONS[currentWeapon].name;
   const [showVolumeSlider, setShowVolumeSlider] = useState(false);
   const [elapsed, setElapsed] = useState(0);
+  const mobile = isMobile();
 
   // Timer
   useEffect(() => {
@@ -283,7 +285,7 @@ export function HUD() {
             {ammo} <span className="text-xl text-white">/ {maxAmmo}</span>
           </div>
           <div className="text-xl font-bold">{weaponName}</div>
-          <div className="text-xs opacity-70 mt-1">KEYS [1-5] TO SWITCH</div>
+          <div className="text-xs opacity-70 mt-1">{mobile ? 'TAP WEAPONS TO SWITCH' : 'KEYS [1-5] TO SWITCH'}</div>
         </div>
       </div>
 
@@ -345,8 +347,12 @@ export function HUD() {
                   className="bg-yellow-500 hover:bg-yellow-400 text-black font-bold py-3 px-8 rounded-lg transition-colors text-lg"
                   onClick={() => {
                     actions.nextLevel();
-                    const canvas = document.querySelector('canvas');
-                    if (canvas) canvas.requestPointerLock();
+                    if (!mobile) {
+                      const canvas = document.querySelector('canvas');
+                      if (canvas) canvas.requestPointerLock();
+                    } else {
+                      actions.startGame();
+                    }
                   }}
                 >
                   NEXT LEVEL →
@@ -356,8 +362,12 @@ export function HUD() {
                   className="bg-yellow-500 hover:bg-yellow-400 text-black font-bold py-3 px-8 rounded-lg transition-colors text-lg"
                   onClick={() => {
                     actions.resetGame();
-                    const canvas = document.querySelector('canvas');
-                    if (canvas) canvas.requestPointerLock();
+                    if (!mobile) {
+                      const canvas = document.querySelector('canvas');
+                      if (canvas) canvas.requestPointerLock();
+                    } else {
+                      actions.startGame();
+                    }
                   }}
                 >
                   🏆 PLAY AGAIN
@@ -425,27 +435,55 @@ export function HUD() {
               </button>
             </div>
 
-            <div className="space-y-2 text-sm opacity-70 mb-6 text-left bg-black/30 p-4 rounded">
-              <p>WASD - Move</p>
-              <p>SPACE - Jump</p>
-              <p>LMB - Fire</p>
-              <p>R - Reload</p>
-              <p>P - Pause</p>
-              <p>M - Return to Menu</p>
-              <p>1-5 - Switch Weapons</p>
-              <p className="text-yellow-400 mt-2">⚠ Kill 10 henchmen to face the BOSS</p>
-            </div>
+            {mobile ? (
+              <div className="space-y-2 text-sm opacity-70 mb-6 text-left bg-black/30 p-4 rounded">
+                <p>🕹 LEFT STICK - Move</p>
+                <p>👆 DRAG SCREEN - Look around</p>
+                <p>🔴 FIRE button - Shoot</p>
+                <p>⬆ JUMP button - Jump</p>
+                <p>↻ RELOAD button - Reload</p>
+                <p>🔫 WEAPON PANEL - Switch weapons</p>
+                <p className="text-yellow-400 mt-2">⚠ Kill 10 henchmen to face the BOSS</p>
+              </div>
+            ) : (
+              <div className="space-y-2 text-sm opacity-70 mb-6 text-left bg-black/30 p-4 rounded">
+                <p>WASD - Move</p>
+                <p>SPACE - Jump</p>
+                <p>LMB - Fire</p>
+                <p>R - Reload</p>
+                <p>P - Pause</p>
+                <p>M - Return to Menu</p>
+                <p>1-5 - Switch Weapons</p>
+                <p className="text-yellow-400 mt-2">⚠ Kill 10 henchmen to face the BOSS</p>
+              </div>
+            )}
 
             <button 
               className="bg-yellow-500 hover:bg-yellow-400 text-black font-bold py-3 px-8 rounded transition-colors"
               onClick={() => {
-                const canvas = document.querySelector('canvas');
-                if (canvas) {
+                if (mobile) {
+                  // On mobile, request fullscreen and just start the game
+                  try {
+                    const root = document.documentElement;
+                    if (root.requestFullscreen) {
+                      root.requestFullscreen().catch(() => {});
+                    } else if ((root as any).webkitRequestFullscreen) {
+                      (root as any).webkitRequestFullscreen();
+                    }
+                  } catch (_) {}
+                  if (health <= 0) {
+                    actions.resetGame();
+                  }
+                  actions.startGame();
+                } else {
+                  const canvas = document.querySelector('canvas');
+                  if (canvas) {
                     canvas.requestPointerLock();
                     if (health <= 0) {
-                        actions.resetGame();
+                      actions.resetGame();
                     }
                     actions.startGame();
+                  }
                 }
               }}
             >

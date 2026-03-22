@@ -1,1 +1,31 @@
 @import "tailwindcss";
+
+/* Mobile touch controls — prevent browser defaults */
+html, body {
+  overscroll-behavior: none;
+  -webkit-overflow-scrolling: auto;
+}
+
+body {
+  touch-action: none;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* Prevent iOS Safari address bar from showing on scroll */
+html {
+  height: 100%;
+  overflow: hidden;
+}
+body {
+  height: 100%;
+  overflow: hidden;
+  position: fixed;
+  width: 100%;
+}
+
+/* Safe area insets for notched devices */
+#root {
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+}

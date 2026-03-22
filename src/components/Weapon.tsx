@@ -4,6 +4,8 @@ import { Vector3, Raycaster, Mesh, Group, Scene, Vector2 } from 'three';
 import { useGameStore, actions } from '../store/gameStore';
 import { WEAPONS, WeaponType } from '../game/types';
 import { soundManager } from '../game/SoundManager';
+import { isMobile } from '../game/platform';
+import { touchStore } from '../store/touchStore';
 
 export function Weapon() {
   const { camera, scene } = useThree();
@@ -34,7 +36,12 @@ export function Weapon() {
     };
   }, [camera]);
 
+  const mobile = isMobile();
+
   useEffect(() => {
+    // On mobile, firing is handled by touchStore, skip mouse events
+    if (mobile) return;
+
     const onMouseDown = (e: MouseEvent) => {
       if (e.button === 0 && isGameRunning) setIsFiring(true);
     };
@@ -47,7 +54,7 @@ export function Weapon() {
       document.removeEventListener('mousedown', onMouseDown);
       document.removeEventListener('mouseup', onMouseUp);
     };
-  }, [isGameRunning]);
+  }, [isGameRunning, mobile]);
 
   useFrame((state) => {
     if (!weaponGroup.current) return;
@@ -63,8 +70,9 @@ export function Weapon() {
 
     weaponGroup.current.position.set(0.3 + swayX, -0.3 + swayY, -0.5);
 
-    // Firing Logic
-    if (isFiring && isGameRunning) {
+    // Firing Logic — check either mouse firing (desktop) or touch firing (mobile)
+    const currentlyFiring = mobile ? touchStore.isFiring : isFiring;
+    if (currentlyFiring && isGameRunning) {
       const now = performance.now();
       if (now - lastFireTime.current > weaponStats.fireRate) {
         if (actions.shoot()) {

@@ -33,6 +33,7 @@ export function useStore<T>(store: Store<T>, selector: (state: T) => any = (s) =
 
 // Game State Definition
 import { WeaponType, LEVELS } from '../game/types';
+import { isMobile } from '../game/platform';
 
 interface CutsceneStats {
   levelName: string;
@@ -179,7 +180,7 @@ export const actions = {
       score: 0,
       level: 1,
       enemiesKilled: 0,
-      message: 'PRESS CLICK TO START',
+      message: isMobile() ? 'TAP TO START' : 'PRESS CLICK TO START',
       bossSpawned: false,
       bossHealth: 2000,
       bossMaxHealth: 2000,

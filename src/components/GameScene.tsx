@@ -6,14 +6,17 @@ import { Level } from './Level';
 import { Enemies } from './Enemies';
 import { Weapon } from './Weapon';
 import { HUD } from './HUD';
+import { MobileControls } from './MobileControls';
 import { useGameStore, actions } from '../store/gameStore';
 import { LEVELS } from '../game/types';
+import { isMobile } from '../game/platform';
 
 export function GameScene() {
   const levelId = useGameStore((state) => state.level);
   const currentLevel = LEVELS.find((l) => l.id === levelId) || LEVELS[0];
   const isGameRunning = useGameStore((state) => state.isGameRunning);
   const gameResetCount = useGameStore((state) => state.gameResetCount);
+  const mobile = isMobile();
 
   return (
     <div className="w-full h-screen bg-black relative">
@@ -79,6 +82,7 @@ export function GameScene() {
         </Suspense>
       </Canvas>
       <HUD />
+      {mobile && <MobileControls />}
     </div>
   );
 }
