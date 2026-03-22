@@ -385,12 +385,11 @@ export function HUD() {
       {/* Center Message / Menu */}
       {!isGameRunning && !levelComplete && (
         <div className="absolute inset-0 flex items-center justify-center bg-black/80 backdrop-blur-sm pointer-events-auto">
-          <div className="bg-white/10 p-10 rounded-2xl border border-white/20 text-center text-white max-w-md w-full">
-            <h1 className="text-4xl font-bold mb-4 text-yellow-400">TRAINING SIMULATOR</h1>
-            <p className="mb-6 opacity-80">
+          <div className={`menu-container-mobile ${mobile ? '' : 'bg-white/10 p-10 rounded-2xl border border-white/20 max-w-md'}`}>
+            <h1 className={`menu-title-mobile ${mobile ? 'text-yellow-400' : 'text-4xl font-bold mb-4 text-yellow-400'}`}>TRAINING SIMULATOR</h1>
+            <p className="mb-6 opacity-80 text-center">
               {message || "Enemies will engage on sight. Stay alert."}
             </p>
-            
             {/* Difficulty Selector */}
             <div className="mb-6 bg-black/30 p-4 rounded">
               <label className="block text-sm font-bold mb-2 text-yellow-400">DIFFICULTY: {difficulty}</label>
@@ -407,7 +406,6 @@ export function HUD() {
                 <span>HARDCORE</span>
               </div>
             </div>
-
             {/* Volume Control in Menu */}
             <div className="mb-6 bg-black/30 p-4 rounded">
               <div className="flex items-center justify-between mb-2">
@@ -423,7 +421,6 @@ export function HUD() {
                 onChange={(e) => actions.setVolume(parseInt(e.target.value) / 100)}
               />
             </div>
-
             {/* Stealth Mode Toggle */}
             <div className="mb-6 bg-black/30 p-4 rounded flex items-center justify-between">
               <label className="text-sm font-bold text-yellow-400">STEALTH MODE (IMMORTAL)</label>
@@ -434,7 +431,6 @@ export function HUD() {
                 <div className={`w-4 h-4 rounded-full bg-white transition-transform ${isStealthMode ? 'translate-x-6' : 'translate-x-0'}`} />
               </button>
             </div>
-
             {mobile ? (
               <div className="space-y-2 text-sm opacity-70 mb-6 text-left bg-black/30 p-4 rounded">
                 <p>🕹 LEFT STICK - Move</p>
@@ -457,9 +453,8 @@ export function HUD() {
                 <p className="text-yellow-400 mt-2">⚠ Kill 10 henchmen to face the BOSS</p>
               </div>
             )}
-
             <button 
-              className="bg-yellow-500 hover:bg-yellow-400 text-black font-bold py-3 px-8 rounded transition-colors"
+              className={`menu-btn-mobile ${mobile ? '' : 'bg-yellow-500 hover:bg-yellow-400 text-black font-bold py-3 px-8 rounded transition-colors'}`}
               onClick={() => {
                 if (mobile) {
                   // On mobile, request fullscreen and just start the game
